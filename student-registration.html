@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>نظام تسجيل الطلاب</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap');
+
+  :root{
+    --bg: #EEF1F6;
+    --surface: #FFFFFF;
+    --primary: #17453D;
+    --primary-light: #2B6659;
+    --accent: #C98A3E;
+    --danger: #C0392B;
+    --text: #1F2937;
+    --muted: #6B7280;
+    --border: #DCE1E8;
+  }
+
+  *{ box-sizing: border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0;
+    font-family: 'Tajawal', Tahoma, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height:100vh;
+  }
+
+  .app{
+    max-width: 640px;
+    margin: 0 auto;
+    min-height: 100vh;
+    background: var(--bg);
+    padding: 24px 18px 60px;
+  }
+
+  .screen{ display:none; animation: fadeIn .25s ease; }
+  .screen.active{ display:block; }
+  @keyframes fadeIn{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
+
+  /* ---------- Home ---------- */
+  .hero{
+    background: linear-gradient(160deg, var(--primary), var(--primary-light));
+    border-radius: 20px;
+    padding: 38px 26px;
+    color: #fff;
+    text-align: center;
+    margin-bottom: 26px;
+  }
+  .hero .eyebrow{
+    font-size: 15px;
+    opacity: .85;
+    margin: 0 0 6px;
+  }
+  .hero .count{
+    font-size: 64px;
+    font-weight: 900;
+    line-height: 1;
+    margin: 4px 0;
+  }
+  .hero .label{
+    font-size: 16px;
+    opacity: .9;
+  }
+
+  .actions{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  .action-btn{
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: 16px;
+    padding: 22px 12px;
+    text-align:center;
+    cursor:pointer;
+    transition: border-color .15s, transform .1s;
+    font-family: inherit;
+  }
+  .action-btn:hover{ border-color: var(--primary-light); }
+  .action-btn:active{ transform: scale(.98); }
+  .action-btn .icon{ font-size: 30px; display:block; margin-bottom:8px; }
+  .action-btn .title{ font-weight:700; font-size:16px; color: var(--primary); }
+  .action-btn .desc{ font-size:12px; color: var(--muted); margin-top:4px; }
+
+  .secondary-actions{
+    display:flex;
+    flex-direction:column;
+    gap: 10px;
+    margin-top: 14px;
+  }
+  .secondary-btn{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    width:100%;
+    padding: 14px;
+    border-radius: 12px;
+    border: 2px solid var(--border);
+    background: var(--surface);
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 700;
+    cursor:pointer;
+    color: var(--text);
+  }
+  .secondary-btn.export{ color: var(--primary); border-color: var(--primary-light); }
+  .secondary-btn.export:hover{ background: #F0F7F5; }
+  .secondary-btn.danger{ color: var(--danger); border-color: #F1C5BF; }
+  .secondary-btn.danger:hover{ background: #FDF3F1; }
+
+  .storage-note{
+    text-align:center;
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 14px;
+  }
+
+  /* ---------- Modal ---------- */
+  .modal-overlay{
+    display:none;
+    position: fixed;
+    inset: 0;
+    background: rgba(15,23,32,0.55);
+    align-items:center;
+    justify-content:center;
+    z-index: 100;
+    padding: 20px;
+  }
+  .modal-overlay.active{ display:flex; }
+  .modal-box{
+    background: #fff;
+    border-radius: 16px;
+    padding: 26px 22px;
+    max-width: 360px;
+    width:100%;
+    text-align:center;
+  }
+  .modal-box .m-icon{ font-size: 34px; margin-bottom: 10px; }
+  .modal-box h3{ margin: 0 0 8px; font-size: 18px; color: var(--text); }
+  .modal-box p{ margin: 0 0 20px; font-size: 14px; color: var(--muted); line-height:1.6; }
+  .modal-btns{ display:flex; gap: 10px; }
+  .modal-btns button{
+    flex:1;
+    padding: 12px;
+    border-radius: 10px;
+    border: none;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    cursor:pointer;
+  }
+  .modal-btns .cancel-btn{ background: var(--bg); color: var(--text); }
+  .modal-btns .confirm-btn{ background: var(--danger); color:#fff; }
+
+  /* ---------- Top bar (add/list screens) ---------- */
+  .topbar{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    margin-bottom: 22px;
+  }
+  .back-btn{
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    width: 40px; height:40px;
+    font-size: 18px;
+    cursor:pointer;
+    color: var(--primary);
+    flex-shrink:0;
+  }
+  .topbar h2{ margin:0; font-size:20px; color: var(--primary); }
+
+  /* ---------- Form ---------- */
+  .form-card{
+    background: var(--surface);
+    border-radius: 16px;
+    padding: 22px;
+    border: 1px solid var(--border);
+  }
+  .field{ margin-bottom: 18px; }
+  .field label{
+    display:block;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 7px;
+  }
+  .field .hint-text{
+    font-size:11px;
+    color: var(--muted);
+    font-weight: 400;
+    margin-right: 6px;
+  }
+  .input-wrap{ position: relative; }
+  .input-wrap input, .input-wrap select{
+    width:100%;
+    padding: 13px 44px 13px 14px;
+    font-size: 16px;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    text-align: right;
+    outline:none;
+    font-family: inherit;
+    background: #fff;
+    color: var(--text);
+    transition: border-color .15s;
+  }
+  .input-wrap select{ padding-left:14px; cursor:pointer; }
+  .input-wrap input:focus, .input-wrap select:focus{ border-color: var(--primary-light); }
+  .input-wrap input.listening{ border-color: var(--danger); background:#FFF6F5; }
+  .input-wrap input.invalid{ border-color: var(--danger); }
+
+  .mic-btn{
+    position:absolute;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 32px; height:32px;
+    border-radius: 8px;
+    border:none;
+    background: var(--bg);
+    font-size: 16px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .mic-btn.listening{ background: var(--danger); animation: pulse 1s infinite; }
+  @keyframes pulse{ 0%{opacity:1;} 50%{opacity:.55;} 100%{opacity:1;} }
+
+  .field-error{ font-size:12px; color: var(--danger); margin-top:5px; display:none; }
+  .field-error.show{ display:block; }
+
+  .status-line{
+    text-align:center;
+    font-size: 13px;
+    color: var(--muted);
+    min-height: 18px;
+    margin: 4px 0 16px;
+  }
+  .status-line.listening{ color: var(--danger); font-weight:700; }
+
+  .save-btn{
+    width:100%;
+    padding: 15px;
+    background: var(--primary);
+    color:#fff;
+    border:none;
+    border-radius: 12px;
+    font-size: 17px;
+    font-weight: 700;
+    cursor:pointer;
+    font-family: inherit;
+    margin-top: 6px;
+  }
+  .save-btn:hover{ background: var(--primary-light); }
+
+  /* ---------- List ---------- */
+  .empty-state{
+    text-align:center;
+    padding: 50px 20px;
+    color: var(--muted);
+  }
+  .empty-state .icon{ font-size:42px; display:block; margin-bottom:10px; }
+
+  .student-card{
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 12px;
+    display:flex;
+    gap: 14px;
+    align-items:flex-start;
+  }
+  .avatar{
+    width: 44px; height:44px;
+    border-radius: 50%;
+    background: var(--primary);
+    color:#fff;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-weight:700;
+    flex-shrink:0;
+  }
+  .student-info{ flex:1; min-width:0; }
+  .student-info .s-name{ font-weight:700; font-size:16px; color:var(--text); margin-bottom:6px; }
+  .student-info .s-row{ font-size:13px; color:var(--muted); margin-bottom:2px; display:flex; gap:6px; }
+  .student-info .s-row b{ color:var(--text); font-weight:500; }
+  .badge{
+    display:inline-block;
+    font-size: 11px;
+    padding: 2px 9px;
+    border-radius: 20px;
+    background: var(--accent);
+    color:#fff;
+    font-weight:700;
+    margin-top: 4px;
+  }
+  .card-actions{ display:flex; flex-direction:column; gap:6px; flex-shrink:0; }
+  .card-actions button{
+    border:none;
+    background: var(--bg);
+    border-radius: 8px;
+    width:34px; height:34px;
+    cursor:pointer;
+    font-size:15px;
+  }
+  .card-actions button.del{ color: var(--danger); }
+
+  .loading{ text-align:center; padding: 40px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ===== HOME SCREEN ===== -->
+  <section class="screen active" id="screen-home">
+    <div class="hero">
+      <p class="eyebrow">إجمالي الطلاب المسجّلين</p>
+      <div class="count" id="totalCount">0</div>
+      <p class="label">طالبًا وطالبة</p>
+    </div>
+    <div class="actions">
+      <button class="action-btn" id="goAdd">
+        <span class="icon">➕</span>
+        <span class="title">إضافة طالب جديد</span>
+        <span class="desc">تسجيل بيانات طالب</span>
+      </button>
+      <button class="action-btn" id="goList">
+        <span class="icon">📋</span>
+        <span class="title">عرض جميع الطلاب</span>
+        <span class="desc">استعراض السجلات</span>
+      </button>
+    </div>
+
+    <div class="secondary-actions">
+      <button class="secondary-btn export" id="exportBtn">📊 تصدير بيانات الطلاب في ملف Excel</button>
+      <button class="secondary-btn danger" id="deleteAllBtn">🗑️ حذف جميع بيانات الطلاب</button>
+    </div>
+
+    <p class="storage-note" id="storageNote"></p>
+  </section>
+
+  <!-- ===== DELETE ALL CONFIRMATION MODAL ===== -->
+  <div class="modal-overlay" id="deleteAllModal">
+    <div class="modal-box">
+      <div class="m-icon">⚠️</div>
+      <h3>حذف جميع بيانات الطلاب؟</h3>
+      <p>سيتم حذف بيانات جميع الطلاب المسجّلين نهائيًا، ولا يمكن التراجع عن هذا الإجراء.</p>
+      <div class="modal-btns">
+        <button class="cancel-btn" id="cancelDeleteAll">إلغاء</button>
+        <button class="confirm-btn" id="confirmDeleteAll">نعم، احذف الكل</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ADD / EDIT SCREEN ===== -->
+  <section class="screen" id="screen-add">
+    <div class="topbar">
+      <button class="back-btn" id="backFromAdd">→</button>
+      <h2 id="addTitle">إضافة طالب جديد</h2>
+    </div>
+
+    <div class="status-line" id="micStatus">اضغط على أيقونة الميكروفون بجانب أي حقل للتحدث</div>
+
+    <div class="form-card">
+
+      <div class="field">
+        <label>اسم الطالب</label>
+        <div class="input-wrap">
+          <input type="text" id="f_name" placeholder="اكتب أو تحدث بالاسم">
+          <button type="button" class="mic-btn" data-field="name" data-mode="text">🎤</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>تاريخ الميلاد <span class="hint-text">(يوم/شهر/سنة)</span></label>
+        <div class="input-wrap">
+          <input type="text" id="f_dob" placeholder="مثال: 27/11/2019" maxlength="10">
+          <button type="button" class="mic-btn" data-field="dob" data-mode="date">🎤</button>
+        </div>
+        <div class="field-error" id="err_dob">صيغة التاريخ غير صحيحة، يجب أن تكون يوم/شهر/سنة</div>
+      </div>
+
+      <div class="field">
+        <label>هوية الطالب <span class="hint-text">(9 أرقام)</span></label>
+        <div class="input-wrap">
+          <input type="text" id="f_personalId" placeholder="000000000" maxlength="9" inputmode="numeric">
+          <button type="button" class="mic-btn" data-field="personalId" data-mode="digits9">🎤</button>
+        </div>
+        <div class="field-error" id="err_personalId">يجب أن تتكون هوية الطالب من 9 أرقام</div>
+      </div>
+
+      <div class="field">
+        <label>هوية ولي الأمر <span class="hint-text">(9 أرقام)</span></label>
+        <div class="input-wrap">
+          <input type="text" id="f_fatherId" placeholder="000000000" maxlength="9" inputmode="numeric">
+          <button type="button" class="mic-btn" data-field="fatherId" data-mode="digits9">🎤</button>
+        </div>
+        <div class="field-error" id="err_fatherId">يجب أن تتكون هوية ولي الأمر من 9 أرقام</div>
+      </div>
+
+      <div class="field">
+        <label>رقم الواتس <span class="hint-text">(10 أرقام)</span></label>
+        <div class="input-wrap">
+          <input type="text" id="f_whatsapp" placeholder="05XXXXXXXX" maxlength="10" inputmode="numeric">
+          <button type="button" class="mic-btn" data-field="whatsapp" data-mode="digits10">🎤</button>
+        </div>
+        <div class="field-error" id="err_whatsapp">يجب أن يتكون رقم الواتس من 10 أرقام</div>
+      </div>
+
+      <div class="field">
+        <label>رقم هاتف بديل <span class="hint-text">(10 أرقام)</span></label>
+        <div class="input-wrap">
+          <input type="text" id="f_mobile" placeholder="05XXXXXXXX" maxlength="10" inputmode="numeric">
+          <button type="button" class="mic-btn" data-field="mobile" data-mode="digits10">🎤</button>
+        </div>
+        <div class="field-error" id="err_mobile">يجب أن يتكون الرقم من 10 أرقام</div>
+      </div>
+
+      <div class="field">
+        <label>الحالة الصحية</label>
+        <div class="input-wrap">
+          <input type="text" id="f_medical" placeholder="سليم / سليمة" value="سليم" style="padding-left:14px;">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>مرفع</label>
+        <div class="input-wrap">
+          <select id="f_raised" style="padding-left:14px;">
+            <option value="لا">لا</option>
+            <option value="مرفع">مرفع</option>
+          </select>
+        </div>
+      </div>
+
+      <button class="save-btn" id="saveBtn">💾 حفظ</button>
+    </div>
+  </section>
+
+  <!-- ===== LIST SCREEN ===== -->
+  <section class="screen" id="screen-list">
+    <div class="topbar">
+      <button class="back-btn" id="backFromList">→</button>
+      <h2>جميع الطلاب</h2>
+    </div>
+    <div id="listContainer">
+      <div class="loading">جاري التحميل...</div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* ============ State ============ */
+let students = [];
+let editingId = null;
+const STORAGE_KEY = 'students-list';
+
+/* ============ Storage helpers ============ */
+/* Uses Claude's artifact storage when previewed inside the chat (syncs to your account).
+   Falls back to the browser's local storage when the file is opened directly / downloaded,
+   so data still survives refreshing or closing the page on that device/browser. */
+const usingArtifactStorage = (typeof window.storage !== 'undefined' && window.storage !== null);
+
+async function loadStudents(){
+  if(usingArtifactStorage){
+    try{
+      const res = await window.storage.get(STORAGE_KEY, false);
+      students = res ? JSON.parse(res.value) : [];
+    }catch(e){
+      students = [];
+    }
+  }else{
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      students = raw ? JSON.parse(raw) : [];
+    }catch(e){
+      students = [];
+    }
+  }
+}
+
+async function saveStudents(){
+  if(usingArtifactStorage){
+    try{
+      await window.storage.set(STORAGE_KEY, JSON.stringify(students), false);
+    }catch(e){
+      console.error('تعذر حفظ البيانات', e);
+    }
+  }else{
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(students));
+    }catch(e){
+      console.error('تعذر حفظ البيانات', e);
+    }
+  }
+}
+
+/* ============ Navigation ============ */
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+document.getElementById('goAdd').addEventListener('click', () => {
+  resetForm();
+  document.getElementById('addTitle').textContent = 'إضافة طالب جديد';
+  showScreen('screen-add');
+});
+document.getElementById('goList').addEventListener('click', () => {
+  renderList();
+  showScreen('screen-list');
+});
+document.getElementById('backFromAdd').addEventListener('click', () => {
+  refreshHome();
+  showScreen('screen-home');
+});
+document.getElementById('backFromList').addEventListener('click', () => {
+  refreshHome();
+  showScreen('screen-home');
+});
+
+function refreshHome(){
+  document.getElementById('totalCount').textContent = students.length;
+}
+
+/* ============ Form helpers ============ */
+const fieldIds = ['name','dob','personalId','fatherId','whatsapp','mobile','medical','raised'];
+
+function resetForm(){
+  editingId = null;
+  document.getElementById('f_name').value = '';
+  document.getElementById('f_dob').value = '';
+  document.getElementById('f_personalId').value = '';
+  document.getElementById('f_fatherId').value = '';
+  document.getElementById('f_whatsapp').value = '';
+  document.getElementById('f_mobile').value = '';
+  document.getElementById('f_medical').value = 'سليم';
+  document.getElementById('f_raised').value = 'لا';
+  fieldIds.forEach(fid => {
+    const inp = document.getElementById('f_' + fid);
+    if(inp) inp.classList.remove('invalid');
+    const err = document.getElementById('err_' + fid);
+    if(err) err.classList.remove('show');
+  });
+}
+
+function fillForm(student){
+  editingId = student.id;
+  document.getElementById('f_name').value = student.name || '';
+  document.getElementById('f_dob').value = student.dob || '';
+  document.getElementById('f_personalId').value = student.personalId || '';
+  document.getElementById('f_fatherId').value = student.fatherId || '';
+  document.getElementById('f_whatsapp').value = student.whatsapp || '';
+  document.getElementById('f_mobile').value = student.mobile || '';
+  document.getElementById('f_medical').value = student.medical || 'سليم';
+  document.getElementById('f_raised').value = student.raised || 'لا';
+}
+
+function validateForm(){
+  let valid = true;
+  const dob = document.getElementById('f_dob').value.trim();
+  const personalId = document.getElementById('f_personalId').value.trim();
+  const fatherId = document.getElementById('f_fatherId').value.trim();
+  const whatsapp = document.getElementById('f_whatsapp').value.trim();
+  const mobile = document.getElementById('f_mobile').value.trim();
+
+  function check(id, ok){
+    const inp = document.getElementById('f_' + id);
+    const err = document.getElementById('err_' + id);
+    if(!ok){
+      inp.classList.add('invalid');
+      if(err) err.classList.add('show');
+      valid = false;
+    }else{
+      inp.classList.remove('invalid');
+      if(err) err.classList.remove('show');
+    }
+  }
+
+  check('dob', /^\d{2}\/\d{2}\/\d{4}$/.test(dob));
+  check('personalId', /^\d{9}$/.test(personalId));
+  check('fatherId', /^\d{9}$/.test(fatherId));
+  check('whatsapp', /^\d{10}$/.test(whatsapp));
+  check('mobile', /^\d{10}$/.test(mobile));
+
+  if(!document.getElementById('f_name').value.trim()){
+    document.getElementById('f_name').classList.add('invalid');
+    valid = false;
+  }else{
+    document.getElementById('f_name').classList.remove('invalid');
+  }
+
+  return valid;
+}
+
+document.getElementById('saveBtn').addEventListener('click', async () => {
+  if(!validateForm()){
+    document.getElementById('micStatus').textContent = 'يرجى تصحيح الحقول المميزة باللون الأحمر';
+    document.getElementById('micStatus').classList.remove('listening');
+    return;
+  }
+  const data = {
+    id: editingId || String(Date.now()),
+    name: document.getElementById('f_name').value.trim(),
+    dob: document.getElementById('f_dob').value.trim(),
+    personalId: document.getElementById('f_personalId').value.trim(),
+    fatherId: document.getElementById('f_fatherId').value.trim(),
+    whatsapp: document.getElementById('f_whatsapp').value.trim(),
+    mobile: document.getElementById('f_mobile').value.trim(),
+    medical: document.getElementById('f_medical').value.trim() || 'سليم',
+    raised: document.getElementById('f_raised').value
+  };
+
+  if(editingId){
+    const idx = students.findIndex(s => s.id === editingId);
+    if(idx !== -1) students[idx] = data;
+  }else{
+    students.push(data);
+  }
+  await saveStudents();
+  refreshHome();
+  resetForm();
+  showScreen('screen-home');
+});
+
+/* ============ List rendering ============ */
+function renderList(){
+  const container = document.getElementById('listContainer');
+  if(students.length === 0){
+    container.innerHTML = '<div class="empty-state"><span class="icon">📭</span>لا يوجد طلاب مسجلون بعد</div>';
+    return;
+  }
+  container.innerHTML = students.map(s => {
+    const initial = (s.name || '?').trim().charAt(0);
+    return `
+      <div class="student-card">
+        <div class="avatar">${initial}</div>
+        <div class="student-info">
+          <div class="s-name">${escapeHtml(s.name)}</div>
+          <div class="s-row"><span>تاريخ الميلاد:</span><b>${escapeHtml(s.dob)}</b></div>
+          <div class="s-row"><span>هوية الطالب:</span><b>${escapeHtml(s.personalId)}</b></div>
+          <div class="s-row"><span>هوية ولي الأمر:</span><b>${escapeHtml(s.fatherId)}</b></div>
+          <div class="s-row"><span>الواتس:</span><b>${escapeHtml(s.whatsapp)}</b></div>
+          <div class="s-row"><span>هاتف بديل:</span><b>${escapeHtml(s.mobile)}</b></div>
+          <div class="s-row"><span>الحالة الصحية:</span><b>${escapeHtml(s.medical)}</b></div>
+          ${s.raised === 'مرفع' ? '<span class="badge">مرفع</span>' : ''}
+        </div>
+        <div class="card-actions">
+          <button class="edit" data-id="${s.id}" title="تعديل">✏️</button>
+          <button class="del" data-id="${s.id}" title="حذف">🗑️</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  container.querySelectorAll('.edit').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const student = students.find(s => s.id === btn.dataset.id);
+      if(student){
+        resetForm();
+        fillForm(student);
+        document.getElementById('addTitle').textContent = 'تعديل بيانات الطالب';
+        showScreen('screen-add');
+      }
+    });
+  });
+  container.querySelectorAll('.del').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if(confirm('هل أنت متأكد من حذف بيانات هذا الطالب؟')){
+        students = students.filter(s => s.id !== btn.dataset.id);
+        await saveStudents();
+        refreshHome();
+        renderList();
+      }
+    });
+  });
+}
+
+function escapeHtml(str){
+  if(!str) return '';
+  return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ============ Speech recognition ============ */
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+const micStatus = document.getElementById('micStatus');
+let recognition = null;
+let activeField = null;
+let activeMode = null;
+let activeBtn = null;
+
+const digitWords = {
+  'صفر':'0','واحد':'1','إثنان':'2','اثنان':'2','اثنين':'2','إثنين':'2',
+  'ثلاثة':'3','ثلاث':'3','أربعة':'4','اربعة':'4','أربع':'4','اربع':'4',
+  'خمسة':'5','خمس':'5','ستة':'6','ست':'6','سبعة':'7','سبع':'7',
+  'ثمانية':'8','ثماني':'8','ثمان':'8','تسعة':'9','تسع':'9'
+};
+
+function arabicIndicToLatin(str){
+  const map = {'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'};
+  return str.replace(/[٠-٩]/g, d => map[d]);
+}
+
+function extractDigits(transcript){
+  let text = arabicIndicToLatin(transcript);
+  const words = text.split(/\s+/);
+  let digits = '';
+  words.forEach(w => {
+    const cleanWord = w.replace(/[^\u0600-\u06FF0-9]/g, '');
+    if(/^\d+$/.test(cleanWord)){
+      digits += cleanWord;
+    }else if(digitWords[cleanWord]){
+      digits += digitWords[cleanWord];
+    }
+  });
+  if(digits === ''){
+    digits = (text.match(/\d/g) || []).join('');
+  }
+  return digits;
+}
+
+if(SpeechRecognition){
+  recognition = new SpeechRecognition();
+  recognition.lang = 'ar-SA';
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+  recognition.continuous = false;
+
+  recognition.addEventListener('result', (event) => {
+    const transcript = event.results[0][0].transcript.trim();
+    const input = document.getElementById('f_' + activeField);
+    if(!input) return;
+
+    if(activeMode === 'text'){
+      input.value = transcript;
+    }else if(activeMode === 'date'){
+      const digits = extractDigits(transcript);
+      if(digits.length >= 8){
+        const d = digits.slice(0,2), m = digits.slice(2,4), y = digits.slice(4,8);
+        input.value = `${d}/${m}/${y}`;
+      }else{
+        input.value = digits;
+      }
+    }else if(activeMode === 'digits9'){
+      input.value = extractDigits(transcript).slice(0,9);
+    }else if(activeMode === 'digits10'){
+      input.value = extractDigits(transcript).slice(0,10);
+    }
+    micStatus.textContent = 'تم التعرف على الكلام بنجاح ✅';
+    micStatus.classList.remove('listening');
+  });
+
+  recognition.addEventListener('error', (event) => {
+    micStatus.textContent = 'حدث خطأ في التعرف على الصوت: ' + event.error;
+    micStatus.classList.remove('listening');
+    stopUI();
+  });
+
+  recognition.addEventListener('end', () => {
+    stopUI();
+  });
+}else{
+  micStatus.textContent = 'التعرف على الصوت غير مدعوم في هذا المتصفح، جرّب Google Chrome';
+}
+
+function stopUI(){
+  if(activeBtn) activeBtn.classList.remove('listening');
+  const input = activeField ? document.getElementById('f_' + activeField) : null;
+  if(input) input.classList.remove('listening');
+  activeField = null;
+  activeBtn = null;
+}
+
+document.querySelectorAll('.mic-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if(!recognition) return;
+    if(activeField){
+      recognition.stop();
+      return;
+    }
+    activeField = btn.dataset.field;
+    activeMode = btn.dataset.mode;
+    activeBtn = btn;
+    btn.classList.add('listening');
+    document.getElementById('f_' + activeField).classList.add('listening');
+    micStatus.textContent = '🎙️ جاري الاستماع... تحدث الآن';
+    micStatus.classList.add('listening');
+    try{
+      recognition.start();
+    }catch(e){
+      stopUI();
+    }
+  });
+});
+
+/* ============ Export to Excel ============ */
+function exportToExcel(){
+  if(students.length === 0){
+    alert('لا يوجد بيانات طلاب لتصديرها');
+    return;
+  }
+  const rows = students.map(s => ({
+    'اسم الطالب': s.name || '',
+    'تاريخ الميلاد': s.dob || '',
+    'هوية الطالب': s.personalId || '',
+    'هوية ولي الأمر': s.fatherId || '',
+    'رقم الواتس': s.whatsapp || '',
+    'رقم هاتف بديل': s.mobile || '',
+    'الحالة الصحية': s.medical || '',
+    'مرفع': s.raised || ''
+  }));
+
+  if(typeof XLSX === 'undefined'){
+    // Fallback if the Excel library couldn't load (e.g. no internet) - export JSON instead
+    exportToJson();
+    alert('تعذّر تحميل مكتبة Excel (يتطلب اتصال بالإنترنت)، تم تصدير البيانات بصيغة JSON بدلاً من ذلك');
+    return;
+  }
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [{wch:20},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:16},{wch:10}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'الطلاب');
+  const dateStr = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `بيانات_الطلاب_${dateStr}.xlsx`);
+}
+
+function exportToJson(){
+  const blob = new Blob([JSON.stringify(students, null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const dateStr = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `بيانات_الطلاب_${dateStr}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+document.getElementById('exportBtn').addEventListener('click', exportToExcel);
+
+/* ============ Delete all ============ */
+const deleteAllModal = document.getElementById('deleteAllModal');
+document.getElementById('deleteAllBtn').addEventListener('click', () => {
+  if(students.length === 0){
+    alert('لا يوجد بيانات طلاب لحذفها');
+    return;
+  }
+  deleteAllModal.classList.add('active');
+});
+document.getElementById('cancelDeleteAll').addEventListener('click', () => {
+  deleteAllModal.classList.remove('active');
+});
+document.getElementById('confirmDeleteAll').addEventListener('click', async () => {
+  students = [];
+  await saveStudents();
+  refreshHome();
+  deleteAllModal.classList.remove('active');
+});
+
+/* ============ Init ============ */
+(async function init(){
+  document.getElementById('listContainer').innerHTML = '<div class="loading">جاري التحميل...</div>';
+  await loadStudents();
+  refreshHome();
+  const note = document.getElementById('storageNote');
+  note.textContent = usingArtifactStorage
+    ? 'البيانات محفوظة في حسابك على Claude'
+    : 'البيانات محفوظة محليًا في هذا المتصفح';
+})();
+</script>
+
+</body>
+</html>
